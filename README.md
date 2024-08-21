@@ -88,3 +88,55 @@ from typing import List
 async def list_tasks():
   return [task_schema.Task(id=1, title="1つ目のTODOタスク")]
 ```
+
+### リクエスト型の定義
+- POST /taskでタスクを新規作成する際にリクエストボディでtitleのみを指定する
+- このとき、POST /taskのリクエストボディとGET /taskのレスポンスボディでtitleが共通なので以下のようにかく
+```python
+from typing import Optional
+
+from pydantic import BaseModel, Field
+
+class TaskBase(BaseModel):
+    title: Optional[str] = Field(None, example="クリーニングを取りに行く")
+
+class TaskCreate(TaskBase):
+    pass
+
+class TaskCreateResponse(TaskCreate):
+    id: int
+
+    class Config:
+        orm_model = True
+
+class Task(TaskBase):
+    id: int
+    done: bool = Field(False, description="完了フラグ")
+
+    class Config:
+        orm_mode = True
+```
+- このようにBaseModelを継承する形で共通フィールドをTaskBaseというクラスに持たせる
+- このTaskBaseを継承する形で、POST /taskのリクエストとレスポンス、GET /taskのレスポンスを作成する
+- APIでリクエストボディの型は以下のようにかく
+  - レスポンスはデコレータを使ってrouterの引数
+  - リクエストは関数の引数で型ヒント
+```python
+@router.post("/tasks", response_model=task_schema.TaskCreateResponse)
+async def create_task(task_body: task_schema.TaskCreate):
+    return task_schema.TaskCreateResponse(id=1, **task_body.dict())
+```
+- また、リクエストパラメータは`{}`をパスに埋め込んでその変数を引数として与える
+```python
+@router.delete("/tasks/{task_id}", response_model=None)
+async def delete_task(task_id: int):
+    return
+```
+
+
+### キーワード引数とdict
+- `dict`インスタンスに対して先頭に`**`をつけることで`dict`をキーワード引数として展開できる
+```python
+task_schema.TaskCreateResponse(id=1, **task_body.dict())
+```
+- `task_schema.TaskCreateResponse(id=1, title=task_body.title, done=task_body.done)`と等価
