@@ -9,6 +9,8 @@ readme = "README.md"
 python = "^3.9"
 fastapi = "^0.112.1"
 uvicorn = {extras = ["standard"], version = "^0.30.6"}
+sqlalchemy = "^2.0.32"
+aiomysql = "^0.2.0"
 
 
 [build-system]

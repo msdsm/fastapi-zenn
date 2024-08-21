@@ -140,3 +140,174 @@ async def delete_task(task_id: int):
 task_schema.TaskCreateResponse(id=1, **task_body.dict())
 ```
 - `task_schema.TaskCreateResponse(id=1, title=task_body.title, done=task_body.done)`と等価
+
+### SQLAlchemyとは
+- https://qiita.com/arkuchy/items/75799665acd09520bed2
+- SQLアルケミー
+- pythonのORMの1つ
+- SQLAlchemyではDB接続設定->マッピング->セッション作成を行いそのセッションを使用してDB操作が可能
+1. **DBエンジンの作成**
+```python
+from sqlalchemy import create_engine
+engine = create_engine("{dialect}+{driver}://{username}:{password}@{host}:{port}/{database}?charset={charset_type})
+```
+| 変数名     | 説明                                                   |
+|------------|--------------------------------------------------------|
+| dialect    | 使用するデータベースの種類。例: `mysql`, `postgresql`   |
+| driver     | データベースに接続するためのドライバー。例: `pymysql`, `psycopg2` |
+| username   | データベースに接続するためのユーザー名                 |
+| password   | データベースに接続するためのパスワード                 |
+| host       | データベースサーバーのホスト名またはIPアドレス         |
+| port       | データベースサーバーがlistenしているポート番号       |
+| database   | 接続したいデータベースの名前                           |
+| charset_type | データベース接続時に使用する文字エンコーディング。例: `utf8` |
+
+- 今回の以下ではパスワードを省略している
+```python
+# api/db.py
+ASYNC_DB_URL = "mysql+aiomysql://root@db:3306/demo?charset=utf8"
+async_engine = create_async_engine(ASYNC_DB_URL, echo=True)
+```
+- `echo=True`にすると実行したSQL文がログに表示される
+
+2. **モデルクラスの作成(テーブル定義)**
+- まずモデルベースクラスを以下のように作成する
+```python
+from sqlalchemy.ext.declarative import declarative_base
+Base = declarative_base()
+```
+- これを継承する形でモデルクラスを定義することでテーブルをマッピングさせられる
+- このときメソッドも定義できる
+```python
+from sqlalchemy.schema import Column
+from sqlalchemy.types import Integer, String
+
+class User(Base):
+    __tablename__ = "user"  # テーブル名を指定
+    user_id = Column(Integer, primary_key=True)
+    first_name = Column(String(255))
+    last_name = Column(String(255))
+    age = Column(Integer)
+
+    def full_name(self):  # フルネームを返すメソッド
+        return "{self.first_name} {self.last_name}"
+```
+
+3. **セッションの作成**
+- SQLAlchemyはセッションを介してクエリを実行する
+- セッションとは、コネクションを確立してから切断するまでの一連の単位のこと
+```python
+from sqlalchemy.orm import sessionmaker
+SessionClass = sessionmaker(engine)  # セッションを作るクラスを作成
+session = SessionClass()
+```
+- 今回は以下
+```python
+async_session = sessionmaker(
+    autocommit=False, autoflush=False, bind=async_engine, class_=AsyncSession
+)
+```
+- `autocommit=False`は明示的にトランザクションをコミットする必要がある設定
+- `autoflush=False`は自動でデータをフラッシュしない設定
+- `bind=async_engine`でセッションが使用するエンジンを指定
+- `class_=AsyncSession`でセッションのクラスを非同期バージョンに指定
+- また、flushとはセッション内で追跡されている変更をデータベースに反映させる操作のことを意味する
+- `autoflush=True`の場合、以下のコードではクエリが実行される前にオブジェクトのdbに対するinsertが自動で行われる
+```python
+session.add(new_object)
+result = session.query(SomeModel).all()
+```
+- 一方で、`autoflush=False`の場合、クエリの実行前にフラッシュが行われないため以下のようにする
+```python
+session.add(new_object)
+session.flush()  # これを呼び出すことで、変更をデータベースに反映
+result = session.query(SomeModel).all()
+```
+
+
+4. **CRUD処理**
+- セッションを使用してDBをたたける
+- INSERT
+```python
+user_a = User(first_name="first_a", last_name="last_a", age=20)
+session.add(user_a)
+session.commit()
+```
+- SELECT
+```python
+users = session.query(User).all()  # userテーブルの全レコードをクラスが入った配列で返す
+user = session.query(User).first()  # userテーブルの最初のレコードをクラスで返す
+```
+- UPDATE
+```python
+user_a = session.query(User).get(1)  # 上で追加したuser_id=1のレコード
+user_a.age = 10
+session.commit()
+```
+- DELETE
+```python
+user_a = session.query(User).get(1)
+session.delete(user_a)
+session.commit()
+```
+### aiomysqlとは
+- MYSQL向けに非同期IO処理を提供するライブラリ
+
+
+### yield
+- https://www.sejuku.net/blog/23716
+- `yield`は以下のように使える
+```python
+def myfunc():
+　　　　yield 'one'
+　　　　yield 'two'
+　　　　yield 'three'
+for x in myfunc():
+　　　　print(x)
+```
+```
+// 実行結果
+one
+two
+three
+```
+- ジェネレータに対して`next`を以下のように使える
+```python
+def myfunc():
+    yield 'one'
+    yield 'two'
+    yield 'three'
+ 
+generator = myfunc()
+ 
+print(next(generator))
+print(next(generator))
+print(next(generator))
+```
+```
+// 実行結果
+one
+two
+three
+```
+- `yield from`は以下のように使える
+```python
+def generator1():
+    yield 'one'
+ 
+def generator2():
+    yield 'two'
+ 
+def generator(g1, g2):
+    yield from g1
+    yield from g2
+ 
+gen = generator(generator1(), generator2())
+
+for x in gen:
+    print(x)
+```
+```
+one 
+two
+```
