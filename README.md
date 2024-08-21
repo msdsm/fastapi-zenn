@@ -121,6 +121,7 @@ class Task(TaskBase):
 - APIでリクエストボディの型は以下のようにかく
   - レスポンスはデコレータを使ってrouterの引数
   - リクエストは関数の引数で型ヒント
+- `Config`で`orm_mode=True`と記述することで暗黙的にORMを受け取り、DBモデルであるmodels.taskにあるtask型をレスポンススキーマであるschemas.taskにあるTaskCreateResponseに変換してくれる
 ```python
 @router.post("/tasks", response_model=task_schema.TaskCreateResponse)
 async def create_task(task_body: task_schema.TaskCreate):
