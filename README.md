@@ -3,6 +3,11 @@
 ## ソース
 - https://zenn.dev/sh0nk/books/537bb028709ab9
 
+## 注意
+- pytest-asyncioのバージョンの違いから本通りに動かしてもテスト通らない
+- これでいける
+  - `docker-compose run --entrypoint "poetry run pytest --asyncio-mode=auto" demo-app`
+
 
 ## メモ
 
@@ -374,3 +379,8 @@ def recv():
         v = yield
         print(f'Receive: {v}')
 ```
+
+
+
+
+
