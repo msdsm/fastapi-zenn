@@ -44,12 +44,13 @@ async def hello():
 
 
 ### uvicorn
-
+- python用のASGI Webサーバー実装
 
 
 ### ASGI
-
-
+- Asynchronous Server Gateway Interface
+- WSGI(Web Server Gateway Interface)の後継
+- 非同期対応のPython Webサーバ、フレームワーク、アプリケーション間標準インターフェースを提供
 
 ### Optional
 - Noneを返す場合のある関数の型ヒントを書くのに使う
@@ -380,7 +381,41 @@ def recv():
         print(f'Receive: {v}')
 ```
 
+### pytest, fixture
+- pytestはpythonで書いたプログラムをテストするためのフレームワーク
+- `test_*.py`という名前のスクリプトが自動的にテスト対象になる
+- テストコードの前処理や後処理を定義するのにfixtureを使う
+  - HTTP clientやdb定義など
+- 例えば、以下のようなテストコードを書いたときに最初の`assert`でテスト失敗すると後処理の`sio.close()`が走らない
+```python
+import StringIO
 
+def test_1():
+    sio = StringIO.StringIO("12345")
+    assert sio.getvalue() == "2345"
+    sio.close()
+    print "closed!"
 
+```
+- こういう時に前処理や後処理を`@pytest.fixture`デコレータを付けてジェネレータを作り、テストコードそれぞれの引数にこれを渡す
+```python
+import pytest
+import time
+import StringIO
 
+@pytest.fixture(scope="module", autouse=True)
+def sio_aaa():
+    sio = StringIO.StringIO("12345")
+    time.sleep(1)
+    print "created!"
+    yield sio
+    time.sleep(1)
+    sio.close()
+    print "closed!"
 
+def test_1(sio_aaa):
+    assert sio_aaa.getvalue() == "2345"
+
+def test_2(sio_aaa):
+    assert sio_aaa.getvalue() == "3456"
+```
