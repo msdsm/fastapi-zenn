@@ -312,3 +312,65 @@ for x in gen:
 one 
 two
 ```
+
+
+
+### コルーチン
+- https://qiita.com/koshigoe/items/054383a89bd51d099f10
+- コルーチンとはプロぐらミグの構造の一種
+- サブルーチンがエントリーからリターンまでを1つの処理単位とするのに対して、コルーチンはいったん処理を中断した後、続きから処理を再開できる
+- Pythonでは`yield`を使ったジェネレータでコルーチンを実装できる
+  - `yield`で処理を中断して再開できるから
+- ジェネレータオブジェクト(ジェネレータ関数の戻り値)をnext()関数に与えることで、`yield`までステップを進めて停止できる(yield式を評価した時点で処理が中断される)
+```python
+def yes():
+    """
+    >>> yes_man = yes()
+    >>> print(next(yes_man))
+    A
+    B
+    yes
+    >>> print(next(yes_man))
+    C
+    B
+    yes
+    >>> print(next(yes_man))
+    C
+    B
+    yes
+    """
+    print 'A'
+    while True:
+        print 'B'
+        yield 'yes'
+        print 'C'
+```
+- また、ジェネレータに値を送信することもできる
+```python
+from functools import wraps
+
+def coroutine(f):
+    @wraps(f)
+    def primer(*args, **kwargs):
+        g = f(*args, **kwargs)
+        next(g)
+        return g
+    return primer
+
+@coroutine
+def recv():
+    """
+    >>> receiver = recv()
+    Started.
+    >>> receiver.send(1)
+    Receive: 1
+    >>> receiver.send(2)
+    Receive: 2
+    >>> receiver.send(3)
+    Receive: 3
+    """
+    print('Started.')
+    while True:
+        v = yield
+        print(f'Receive: {v}')
+```
